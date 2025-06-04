@@ -12,13 +12,6 @@ class TestBrowserContext:
 	"""Tests for browser context functionality using real browser instances."""
 
 	@pytest.fixture(scope='module')
-	def event_loop(self):
-		"""Create and provide an event loop for async tests."""
-		loop = asyncio.get_event_loop_policy().new_event_loop()
-		yield loop
-		loop.close()
-
-	@pytest.fixture(scope='module')
 	def http_server(self):
 		"""Create and provide a test HTTP server that serves static content."""
 		server = HTTPServer()
@@ -61,8 +54,8 @@ class TestBrowserContext:
 		"""Return the base URL for the test HTTP server."""
 		return f'http://{http_server.host}:{http_server.port}'
 
-	@pytest.fixture(scope='module')
-	async def browser_session(self, event_loop):
+	@pytest.fixture
+	async def browser_session(self):
 		"""Create and provide a BrowserSession instance with security disabled."""
 		browser_session = BrowserSession(
 			# browser_profile=BrowserProfile(...),
@@ -85,7 +78,8 @@ class TestBrowserContext:
 		assert context1._is_url_allowed('https://anotherdomain.org/path') is True
 
 		# Scenario 2: allowed_domains is provided.
-		allowed = ['example.com', '*.mysite.org']
+		# Note: match_url_with_domain_pattern defaults to https:// scheme when none is specified
+		allowed = ['https://example.com', 'http://example.com', 'http://*.mysite.org', 'https://*.mysite.org']
 		config2 = BrowserProfile(allowed_domains=allowed)
 		context2 = BrowserSession(browser_profile=config2)
 
@@ -93,7 +87,7 @@ class TestBrowserContext:
 		assert context2._is_url_allowed('http://example.com') is True
 		# URL with subdomain (should not be allowed)
 		assert context2._is_url_allowed('http://sub.example.com/path') is False
-		# URL with different domain (should not be allowed)
+		# URL with subdomain for wildcard pattern (should be allowed)
 		assert context2._is_url_allowed('http://sub.mysite.org') is True
 		# URL that matches second allowed domain
 		assert context2._is_url_allowed('https://mysite.org/page') is True
